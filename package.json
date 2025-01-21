@@ -1,7 +1,11 @@
 {
   "name": "autogit",
-  "displayName": "AutoGit",
-  "description": "An extension to track and log file changes in a Git repository.",
+  "displayName": "ProGitter",
+  "description": "to be updated",
+  "publisher": "HrudayGurijala",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HrudayGurijala/auto-git.git"},
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.96.0"

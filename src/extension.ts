@@ -63,17 +63,28 @@ function appendToReadme(fileName: string, directory: string, filesEffected: numb
     const readmePath = path.join(repoPath, 'README.md');
     const timeStamp = new Date().toUTCString();
     const content = `| ${fileName} | ${directory} | ${filesEffected} | ${timeStamp} |\n`;
-    const structure = `| File Name | Directory | Files affected | Time Stamp |\n|:---:|:---:|:---:|:---:|\n`;
+    const structure = `| File Name | Directory | Files affected | Time Stamp |\n|:---:|:---:|:---:|:---:|\n| ${fileName} | ${directory} | ${filesEffected} | ${timeStamp} |\n`;
 
     if (!fs.existsSync(repoPath)) {
         fs.mkdirSync(repoPath, { recursive: true });
     }
-
-    if (!fs.existsSync(readmePath)) {
-        fs.writeFileSync(readmePath, structure + content, 'utf8');
-    } else {
-        fs.appendFileSync(readmePath, content, 'utf8');
-    }
+    fs.readFile(readmePath, 'utf8', (err, data) => {
+        if(data.length === 0){
+            fs.appendFile(readmePath, structure, (err) => {
+                if (err) {
+                    vscode.window.showErrorMessage(`Failed to append to README.md: ${err.message}`);
+                }
+            });
+        }else{
+            fs.appendFile(readmePath, content, (err) => {
+                if (err) {
+                    vscode.window.showErrorMessage(`Failed to append to README.md: ${err.message}`);
+                } else {
+                    vscode.window.showInformationMessage('Successfully appended to README.md in the specific repo');
+                    commitAndPushChanges(repoPath);
+                }
+            });
+        }});
 
     commitAndPushChanges(repoPath);
 }
@@ -143,6 +154,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
     }, 30 * 60 * 1000);
+    // }, 30 * 1000);
 
     context.subscriptions.push({
         dispose: () => clearInterval(intervalHandle)
