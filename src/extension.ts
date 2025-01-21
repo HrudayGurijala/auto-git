@@ -1,68 +1,78 @@
 import * as vscode from 'vscode';
-var exec = require('child_process').exec;
+import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-const editor = vscode.window.activeTextEditor;
+
+let filesEffected: number = 0;
+let fileWatcher: vscode.FileSystemWatcher | undefined;
 
 // Function to get current file details
 function getCurrentFileDetails() {
+    const editor = vscode.window.activeTextEditor;
     if (editor) {
-
-	// 	var message ='';
-
-	// 	exec('find -type f -newermt "2025-01-20 00:00:00" \! -newermt "2025-01-20 17:55:00"',
-    // function (error:any, stdout:any, stderr:any) {
-	// 	message = stdout;
-    //     console.log('stdout: ' + stdout);
-    //     console.log('stderr: ' + stderr);
-    //     if (error !== null) {
-    //          console.log('exec error: ' + error);
-    //     }
-    // });
         const currentFile = editor.document.uri;
         const filePath = currentFile.fsPath;
-        const fileName = currentFile.fsPath.split(/[\\/]/).pop();
-        
+        const fileName = path.basename(filePath);
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(currentFile);
         const currentDirectory = workspaceFolder ? workspaceFolder.uri.fsPath : undefined;
-        
+
         return {
-			// message,
             fileName,
             filePath,
-            currentDirectory
+            currentDirectory,
+            filesEffected
         };
     }
     return null;
 }
 
+function setupFileWatcher() {
+    if (fileWatcher) {
+        fileWatcher.dispose();
+    }
 
-function appendToReadme(fileName: any, directory: string) {
-    const repoPath = 'C:/Users/gurij/OneDrive/Desktop/code_logs'; 
+    fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
+
+    fileWatcher.onDidChange(() => {
+        filesEffected++;
+        console.log(`Files affected: ${filesEffected}`);
+    });
+
+    fileWatcher.onDidCreate(() => {
+        filesEffected++;
+        console.log(`Files affected: ${filesEffected}`);
+    });
+
+    fileWatcher.onDidDelete(() => {
+        filesEffected++;
+        console.log(`Files affected: ${filesEffected}`);
+    });
+
+    return fileWatcher;
+}
+
+function appendToReadme(fileName: string, directory: string, filesEffected: number) {
+    const repoPath = 'C:/Users/gurij/OneDrive/Desktop/code_logs';
     const readmePath = path.join(repoPath, 'README.md');
     const timeStamp = new Date().toUTCString();
-    const content = `| ${fileName} | ${directory} | ${timeStamp} |`;
-    const structure = `## Code Logs\n\n
-    | Filename | Directory | Time-Stamp |
-    \n|:---------|:---------:|-----------:|`;
-    fs.readFile(readmePath, 'utf8', (err, data) => {
-        if(data.length === 0){
-            fs.appendFile(readmePath, structure, (err) => {
-                if (err) {
-                    vscode.window.showErrorMessage(`Failed to append to README.md: ${err.message}`);
-                }
-            });
-        }else{
-            fs.appendFile(readmePath, content, (err) => {
-                if (err) {
-                    vscode.window.showErrorMessage(`Failed to append to README.md: ${err.message}`);
-                } else {
-                    vscode.window.showInformationMessage('Successfully appended to README.md in the specific repo');
-                    commitAndPushChanges(repoPath);
-                }
-            });
+    const content = `| ${fileName} | ${directory} | ${filesEffected} | ${timeStamp} |\n`;
+    const structure = `| File Name | Directory | Files affected | Time Stamp |\n|:---:|:---:|:---:|:---:|\n`;
+
+    if (!fs.existsSync(repoPath)) {
+        fs.mkdirSync(repoPath, { recursive: true });
+    }
+
+    if (!fs.existsSync(readmePath)) {
+        fs.writeFileSync(readmePath, structure);
+    }
+
+    fs.appendFile(readmePath, content, (err) => {
+        if (err) {
+            vscode.window.showErrorMessage(`Failed to append to README.md: ${err.message}`);
+        } else {
+            vscode.window.showInformationMessage('Successfully appended to README.md');
+            commitAndPushChanges(repoPath);
         }
-                
     });
 }
 
@@ -73,45 +83,53 @@ function commitAndPushChanges(repoPath: string) {
         'git push'
     ];
 
-    exec(commands.join(' && '), { cwd: repoPath }, (err: any, stdout: any, stderr: any) => {
+    exec(commands.join(' && '), { cwd: repoPath }, (err, stdout, stderr) => {
         if (err) {
             vscode.window.showErrorMessage(`Failed to push changes to GitHub: ${err.message}`);
+            console.error('Git error:', stderr);
         } else {
             vscode.window.showInformationMessage('Successfully pushed changes to GitHub');
         }
     });
 }
 
-vscode.commands.registerCommand('autogit.appendToReadme', () => {
-    const fileDetails = getCurrentFileDetails();
-
-    setInterval(function(){  
-        if (fileDetails && fileDetails.currentDirectory) {
-            appendToReadme(fileDetails.fileName, fileDetails.currentDirectory);
-        } else {
-            vscode.window.showInformationMessage('No active editor or workspace folder');
-        }
-    }, 10000);  
-
-
-});
-
 export function activate(context: vscode.ExtensionContext) {
-    let disposable = vscode.commands.registerCommand('autogit.getFileInfo', () => {
-        const fileDetails = getCurrentFileDetails();
-        
-        if (fileDetails) {
-            vscode.window.showInformationMessage(
-                `Current File: ${fileDetails.fileName}\n` +
-                `Directory: ${fileDetails.currentDirectory}`
-				// +`Message: ${fileDetails.message}`
-            );
-        } else {
-            vscode.window.showInformationMessage('No active editor');
-        }
-    });
+    const watcher = setupFileWatcher();
+    context.subscriptions.push(watcher);
 
-    context.subscriptions.push(disposable);
+    // Register getFileInfo command
+    // let getFileInfoDisposable = vscode.commands.registerCommand('autogit.getFileInfo', () => {
+    //     const fileDetails = getCurrentFileDetails();
+    //     if (fileDetails) {
+    //         vscode.window.showInformationMessage(`Files affected: ${fileDetails.filesEffected}`);
+    //     } else {
+    //         vscode.window.showInformationMessage('No active editor');
+    //     }
+    // });
+    // context.subscriptions.push(getFileInfoDisposable);
+
+    let appendToReadmeDisposable = vscode.commands.registerCommand('autogit.appendToReadme', () => {
+        const intervalHandle = setInterval(() => {
+            const fileDetails = getCurrentFileDetails();
+            if (fileDetails && fileDetails.currentDirectory) {
+                // vscode.window.showInformationMessage(`Files affected: ${fileDetails.filesEffected}`);
+                appendToReadme(fileDetails.fileName, fileDetails.currentDirectory, filesEffected);
+                filesEffected = 0;
+            } else {
+                vscode.window.showInformationMessage('No active editor or workspace folder');
+            }
+        }, 15000); 
+
+        // Clear interval on dispose
+        context.subscriptions.push({
+            dispose: () => clearInterval(intervalHandle)
+        });
+    });
+    context.subscriptions.push(appendToReadmeDisposable);
 }
 
-export function deactivate() {}
+export function deactivate() {
+    if (fileWatcher) {
+        fileWatcher.dispose();
+    }
+}
