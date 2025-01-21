@@ -6,24 +6,22 @@ import * as path from 'path';
 let filesEffected: number = 0;
 let fileWatcher: vscode.FileSystemWatcher | undefined;
 
-
-// get the local git repo path 
-//get interval time from user
-
 const quotes = [
-"Code is like humor. When you have to explain it, it’s bad.",
-"First, solve the problem. Then, write the code.",
-"Experience is the name everyone gives to their mistakes.",
-"In order to be irreplaceable, one must always be different.",
-"Java is to JavaScript what car is to Carpet.",
-"Knowledge is power.",
-"Sometimes it pays to stay in bed on Monday, rather than spending the rest of the week debugging Monday’s code.",
-"Perfection is achieved not when there is nothing more to add, but rather when there is nothing more to take away.",
-"Ruby is rubbish! PHP is phpantastic!",
-"Code never lies, comments sometimes do."];
+    "Code is like humor. When you have to explain it, it’s bad.",
+    "First, solve the problem. Then, write the code.",
+    "Experience is the name everyone gives to their mistakes.",
+    "In order to be irreplaceable, one must always be different.",
+    "Java is to JavaScript what car is to Carpet.",
+    "Knowledge is power.",
+    "Sometimes it pays to stay in bed on Monday, rather than spending the rest of the week debugging Monday’s code.",
+    "Perfection is achieved not when there is nothing more to add, but rather when there is nothing more to take away.",
+    "Ruby is rubbish! PHP is phpantastic!",
+    "Code never lies, comments sometimes do."
+];
 
-const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-
+function getRandomQuote() {
+    return quotes[Math.floor(Math.random() * quotes.length)];
+}
 
 function getCurrentFileDetails() {
     const editor = vscode.window.activeTextEditor;
@@ -34,72 +32,50 @@ function getCurrentFileDetails() {
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(currentFile);
         const currentDirectory = workspaceFolder ? workspaceFolder.uri.fsPath : undefined;
 
-        return {
-            fileName,
-            filePath,
-            currentDirectory,
-            filesEffected
-        };
+        return { fileName, filePath, currentDirectory, filesEffected };
     }
     return null;
 }
 
 function setupFileWatcher() {
-    if (fileWatcher) {
-        fileWatcher.dispose();
-    }
+    if (fileWatcher){ fileWatcher.dispose();}
 
     fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
 
-    fileWatcher.onDidChange(() => {
-        filesEffected++;
-        console.log(`Files affected: ${filesEffected}`);
-    });
-
-    fileWatcher.onDidCreate(() => {
-        filesEffected++;
-        console.log(`Files affected: ${filesEffected}`);
-    });
-
-    fileWatcher.onDidDelete(() => {
-        filesEffected++;
-        console.log(`Files affected: ${filesEffected}`);
-    });
+    fileWatcher.onDidChange(() => filesEffected++);
+    fileWatcher.onDidCreate(() => filesEffected++);
+    fileWatcher.onDidDelete(() => filesEffected++);
 
     return fileWatcher;
 }
 
+function getRepoPath(): string | null {
+    return vscode.workspace.getConfiguration('autogit').get<string>('repoPath') || null;
+}
+
 function appendToReadme(fileName: string, directory: string, filesEffected: number) {
-    const repoPath = 'C:/Users/gurij/OneDrive/Desktop/code_logs';
+    const repoPath = getRepoPath();
+    if (!repoPath) {
+        vscode.window.showErrorMessage('Repository path is not set. Use the "Set Repository Path" command.');
+        return;
+    }
+
     const readmePath = path.join(repoPath, 'README.md');
     const timeStamp = new Date().toUTCString();
     const content = `| ${fileName} | ${directory} | ${filesEffected} | ${timeStamp} |\n`;
     const structure = `| File Name | Directory | Files affected | Time Stamp |\n|:---:|:---:|:---:|:---:|\n`;
 
-
-    fs.readFile(readmePath, 'utf8', (err, data) => {
-        if(data.length === 0){
-            fs.appendFile(readmePath, structure+content, (err) => {
-                if (err) {
-                    vscode.window.showErrorMessage(`Failed to append to README.md: ${err.message}`);
-                }
-            });
-        }else{
-            fs.appendFile(readmePath, content, (err) => {
-                if (err) {
-                    vscode.window.showErrorMessage(`Failed to append to README.md: ${err.message}`);
-                } else {
-                    vscode.window.showInformationMessage('Successfully appended to README.md');
-                    commitAndPushChanges(repoPath);
-                }
-            });
-        }
-    });
-
     if (!fs.existsSync(repoPath)) {
         fs.mkdirSync(repoPath, { recursive: true });
     }
 
+    if (!fs.existsSync(readmePath)) {
+        fs.writeFileSync(readmePath, structure + content, 'utf8');
+    } else {
+        fs.appendFileSync(readmePath, content, 'utf8');
+    }
+
+    commitAndPushChanges(repoPath);
 }
 
 function commitAndPushChanges(repoPath: string) {
@@ -119,21 +95,58 @@ function commitAndPushChanges(repoPath: string) {
     });
 }
 
+function setRepoPath() {
+    vscode.window.showInputBox({
+        prompt: 'Enter the path to your local Git repository',
+        value: getRepoPath() || '',
+        ignoreFocusOut: true
+    }).then((path) => {
+        if (path) {
+            vscode.workspace.getConfiguration('autogit').update('repoPath', path, vscode.ConfigurationTarget.Global);
+            vscode.window.showInformationMessage(`Repository path set to: ${path}`);
+        }
+    });
+}
+
 export function activate(context: vscode.ExtensionContext) {
-    let appendToReadmeCommand = vscode.commands.registerCommand('autogit.appendToReadme', () => {
+    const watcher = setupFileWatcher();
+    context.subscriptions.push(watcher);
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('autogit.setRepoPath', setRepoPath)
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('autogit.appendToReadme', () => {
+            const fileDetails = getCurrentFileDetails();
+            if (fileDetails && fileDetails.currentDirectory) {
+                if (filesEffected === 0) {
+                    vscode.window.showInformationMessage(`No files affected.\n\n${getRandomQuote()}`);
+                } else {
+                    appendToReadme(fileDetails.fileName, fileDetails.currentDirectory, filesEffected);
+                    filesEffected = 0;
+                }
+            } else {
+                vscode.window.showInformationMessage('No active editor or files affected');
+            }
+        })
+    );
+
+    const intervalHandle = setInterval(() => {
         const fileDetails = getCurrentFileDetails();
         if (fileDetails && fileDetails.currentDirectory) {
-            if(filesEffected === 0){
-                vscode.window.showInformationMessage(`No files affected.\n\n ${randomQuote}`);
-            }else{
+            if (filesEffected === 0) {
+                vscode.window.showInformationMessage(`No files affected.\n\n${getRandomQuote()}`);
+            } else {
                 appendToReadme(fileDetails.fileName, fileDetails.currentDirectory, filesEffected);
                 filesEffected = 0;
             }
-        } else {
-            vscode.window.showInformationMessage('No active editor or files affected');
         }
+    }, 30 * 60 * 1000);
+
+    context.subscriptions.push({
+        dispose: () => clearInterval(intervalHandle)
     });
-    context.subscriptions.push(appendToReadmeCommand);
 
     vscode.commands.executeCommand('autogit.appendToReadme').then(
         () => {
@@ -143,30 +156,8 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage(`Failed to execute command on startup: ${err.message}`);
         }
     );
-
-    const watcher = setupFileWatcher();
-    context.subscriptions.push(watcher);
-
-    const intervalHandle = setInterval(() => {
-        const fileDetails = getCurrentFileDetails();
-        if (fileDetails && fileDetails.currentDirectory) {
-            if(filesEffected === 0){
-                vscode.window.showInformationMessage(`No files affected.\n\n ${randomQuote}`);
-            }else{
-                appendToReadme(fileDetails.fileName, fileDetails.currentDirectory, filesEffected);
-                filesEffected = 0;
-            }
-        }
-    }, 15000);
-
-    context.subscriptions.push({
-        dispose: () => clearInterval(intervalHandle),
-    });
 }
 
-
 export function deactivate() {
-    if (fileWatcher) {
-        fileWatcher.dispose();
-    }
+    if (fileWatcher){ fileWatcher.dispose();}
 }

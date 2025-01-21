@@ -1,25 +1,37 @@
 {
   "name": "autogit",
-  "displayName": "autogit",
-  "description": "",
+  "displayName": "AutoGit",
+  "description": "An extension to track and log file changes in a Git repository.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.96.0"
   },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [ "onStartupFinished" ],
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
-"contributes": {
-  "commands": [
-    {
-      "command": "autogit.appendToReadme",
-      "title": "Append to Readme"
+  "contributes": {
+    "commands": [
+      {
+        "command": "autogit.appendToReadme",
+        "title": "Append to Readme"
+      },
+      {
+        "command": "autogit.setRepoPath",
+        "title": "Set Repository Path"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "AutoGit Configuration",
+      "properties": {
+        "autogit.repoPath": {
+          "type": "string",
+          "default": "",
+          "description": "The file path to your local Git repository."
+        }
+      }
     }
-  ]
-}
-,
+  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
