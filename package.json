@@ -9,20 +9,17 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [ "onStartupFinished" ],
   "main": "./out/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "autogit.getFileInfo",
-        "title": "Get File Info"
-      },
-      {
-        "command": "autogit.appendToReadme",
-        "title": "Append to Readme"
-      }
-    ]
-  },
+"contributes": {
+  "commands": [
+    {
+      "command": "autogit.appendToReadme",
+      "title": "Append to Readme"
+    }
+  ]
+}
+,
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
