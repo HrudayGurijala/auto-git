@@ -1,12 +1,13 @@
 {
   "name": "autogit",
-  "displayName": "ProGitter",
-  "description": "to be updated",
+  "displayName": "Auto Git",
+  "description": "Github progress tracker(rightfully)",
   "publisher": "HrudayGurijala",
+  "icon": "/images/autogit-logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/HrudayGurijala/auto-git.git"},
-  "version": "0.0.5",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.96.0"
   },

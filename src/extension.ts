@@ -178,7 +178,4 @@ export function deactivate() {
     if (fileWatcher){ fileWatcher.dispose();}
 }
 
-//just a test
-//lets see if this extension works
-//i'll meet you at 8:38am
 
