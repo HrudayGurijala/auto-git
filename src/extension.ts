@@ -32,7 +32,7 @@ function getCurrentFileDetails() {
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(currentFile);
         const currentDirectory = workspaceFolder ? workspaceFolder.uri.fsPath : undefined;
 
-        return { fileName, filePath, currentDirectory, filesEffected };
+        return { fileName, filePath, currentDirectory };
     }
     return null;
 }
@@ -41,13 +41,17 @@ function setupFileWatcher() {
     if (fileWatcher){
         fileWatcher.dispose();
     }
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+        const currentDirectory = workspaceFolder ? workspaceFolder.uri.fsPath : undefined;
+        // const currentDirectory = path.dirname(editor.document.uri.fsPath);
+        fileWatcher = vscode.workspace.createFileSystemWatcher(`${currentDirectory}/**/*`);
 
-    fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
-
-    fileWatcher.onDidChange(() => filesEffected++);
-    fileWatcher.onDidCreate(() => filesEffected++);
-    fileWatcher.onDidDelete(() => filesEffected++);
-
+        fileWatcher.onDidChange(() => filesEffected++);
+        fileWatcher.onDidCreate(() => filesEffected++);
+        fileWatcher.onDidDelete(() => filesEffected++);
+    }
     return fileWatcher;
 }
 
@@ -123,7 +127,9 @@ function setRepoPath() {
 
 export function activate(context: vscode.ExtensionContext) {
     const watcher = setupFileWatcher();
-    context.subscriptions.push(watcher);
+    if (watcher) {
+        context.subscriptions.push(watcher);
+    }
 
     context.subscriptions.push(
         vscode.commands.registerCommand('autogit.setRepoPath', setRepoPath)
@@ -146,6 +152,7 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.window.showInformationMessage('No active editor or files affected');
                 }
             }, 30*60*1000);
+            // }, 30 * 1000);
 
             context.subscriptions.push({
                 dispose: () => clearInterval(intervalHandle)
@@ -154,7 +161,6 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
 
-    // }, 30 * 1000);
 
 
 

@@ -1,5 +1,3 @@
-test readme
-
-will update readme soon........
-
-thinking if the files affected really works or its just a turd
+readme me likhne me alaas ho rahe ho gawar sala 
+kuch nahi hoga terese
+bkwbdkw
