@@ -38,7 +38,9 @@ function getCurrentFileDetails() {
 }
 
 function setupFileWatcher() {
-    if (fileWatcher){ fileWatcher.dispose();}
+    if (fileWatcher){
+        fileWatcher.dispose();
+    }
 
     fileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
 
@@ -98,8 +100,8 @@ function commitAndPushChanges(repoPath: string) {
 
     exec(commands.join(' && '), { cwd: repoPath }, (err, stdout, stderr) => {
         if (err) {
-            vscode.window.showErrorMessage(`Failed to push changes to GitHub: ${err.message}`);
-            console.error('Git error:', stderr);
+            // vscode.window.showErrorMessage(`Failed to push changes to GitHub: ${err.message}`);
+            console.error('Git error:', err);
         } else {
             vscode.window.showInformationMessage('Successfully pushed changes to GitHub');
         }
@@ -129,36 +131,32 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('autogit.appendToReadme', () => {
-            const fileDetails = getCurrentFileDetails();
-            if (fileDetails && fileDetails.currentDirectory) {
-                if (filesEffected === 0) {
-                    vscode.window.showInformationMessage(`No files affected.\n\n${getRandomQuote()}`);
-                } else {
-                    appendToReadme(fileDetails.fileName, fileDetails.currentDirectory, filesEffected);
-                    filesEffected = 0;
+
+            const intervalHandle = setInterval(() => {
+                const fileDetails = getCurrentFileDetails();
+                if (fileDetails && fileDetails.currentDirectory) {
+                    if (filesEffected === 0) {
+                        vscode.window.showInformationMessage(`No files affected.\n\n${getRandomQuote()}`);
+                    } else {
+                        appendToReadme(fileDetails.fileName, fileDetails.currentDirectory, filesEffected);
+                        filesEffected = 0;
+                    }
+                }else
+                {
+                    vscode.window.showInformationMessage('No active editor or files affected');
                 }
-            } else {
-                vscode.window.showInformationMessage('No active editor or files affected');
-            }
+            }, 30*60*1000);
+
+            context.subscriptions.push({
+                dispose: () => clearInterval(intervalHandle)
+            });
         })
     );
 
-    const intervalHandle = setInterval(() => {
-        const fileDetails = getCurrentFileDetails();
-        if (fileDetails && fileDetails.currentDirectory) {
-            if (filesEffected === 0) {
-                vscode.window.showInformationMessage(`No files affected.\n\n${getRandomQuote()}`);
-            } else {
-                appendToReadme(fileDetails.fileName, fileDetails.currentDirectory, filesEffected);
-                filesEffected = 0;
-            }
-        }
-    }, 30 * 60 * 1000);
+
     // }, 30 * 1000);
 
-    context.subscriptions.push({
-        dispose: () => clearInterval(intervalHandle)
-    });
+
 
     vscode.commands.executeCommand('autogit.appendToReadme').then(
         () => {
@@ -173,3 +171,8 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
     if (fileWatcher){ fileWatcher.dispose();}
 }
+
+//just a test
+//lets see if this extension works
+//i'll meet you at 8:38am
+
