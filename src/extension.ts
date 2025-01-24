@@ -153,6 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             }, 30*60*1000);
             // }, 30 * 1000);
+            //Use this for testing
 
             context.subscriptions.push({
                 dispose: () => clearInterval(intervalHandle)
